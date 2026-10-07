@@ -78,7 +78,24 @@ Root = HumanoidRootPart
 -- ==========================================
 -- 5. LOAD UI LIBRARY (john doe hub)
 -- ==========================================
-Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/hdanhhub/UI/main/ui_BananaHub_lua.txt"))()
+do
+    local ok, result = pcall(function()
+        -- Lấy source code thư viện rồi append "return Library" để nó trả về đúng
+        local src = game:HttpGet("https://raw.githubusercontent.com/hdanhhub/UI/main/ui_BananaHub_lua.txt")
+        src = src .. "\nreturn Library"
+        return loadstring(src)()
+    end)
+    if ok and type(result) == "table" and result.CreateWindow then
+        Library = result
+    else
+        -- Fallback: thử lấy từ getgenv nếu thư viện đã tự set
+        Library = getgenv().Library or getgenv().UILib
+    end
+    if not Library or not Library.CreateWindow then
+        warn("[john doe hub] Không load được UI Library! Lỗi: " .. tostring(result))
+        return
+    end
+end
 
 local JohnDoeLogo = "rbxassetid://123613996022560"
 local BananaLogo = "rbxassetid://88031262069243"
