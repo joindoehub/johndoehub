@@ -2594,25 +2594,48 @@ function UpdateGeaESP()
         end)
     end
 end
+local function NormalizeTeleportCF(cf)
+    if typeof(cf) == "CFrame" then
+        return cf
+    elseif typeof(cf) == "Vector3" then
+        return CFrame.new(cf)
+    end
+    return nil
+end
+
 function Tween2(p170)
-    local v171 = (p170.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-    local v172 = 350
-    local v173 = TweenInfo.new(v171 / v172, Enum.EasingStyle.Linear)
-    local v174 = game:GetService("TweenService"):Create(game.Players.LocalPlayer.Character.HumanoidRootPart, v173, {
-        ["CFrame"] = p170
+    local char = game.Players.LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp or not p170 then return end
+    local targetCF = NormalizeTeleportCF(p170)
+    if not targetCF then return end
+
+    local dist = (targetCF.Position - hrp.Position).Magnitude
+    if dist < 1 then return end
+
+    local duration = math.clamp(dist / 350, 0.1, 2.5)
+    local tween = game:GetService("TweenService"):Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+        ["CFrame"] = targetCF
     })
-    v174:Play()
+    tween:Play()
     if _G.StopTween2 then
-        v174:Cancel()
+        tween:Cancel()
     end
     _G.Clip2 = true
-    wait(v171 / v172)
-    _G.Clip2 = false
+    task.delay(duration, function()
+        _G.Clip2 = false
+    end)
 end
 function BKP(p175)
-    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = p175
+    local char = game.Players.LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    local targetCF = NormalizeTeleportCF(p175)
+    if not targetCF then return end
+
+    hrp.CFrame = targetCF
     task.wait()
-    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = p175
+    hrp.CFrame = targetCF
 end
 TweenSpeed = 600
 -- Tốc độ tối đa server Blox Fruits chấp nhận (studs/giây)
@@ -2664,13 +2687,16 @@ local _tweenThread = nil
 
 function Tween(p176)
     if not p176 then return end
+    local targetCF = NormalizeTeleportCF(p176)
+    if not targetCF then return end
+
     -- Hủy coroutine tween cũ nếu có
     if _tweenThread then
         pcall(function() task.cancel(_tweenThread) end)
         _tweenThread = nil
     end
     _tweenThread = task.spawn(function()
-        SafeMove(p176, function()
+        SafeMove(targetCF, function()
             return _tweenThread == nil
         end)
         _tweenThread = nil
@@ -5265,6 +5291,45 @@ elseif Sea3 then
         "Cake Queen"
     }
 end
+if not _G.SelectBoss or not table.find(tableBoss, _G.SelectBoss) then
+    _G.SelectBoss = tableBoss[1]
+end
+SelectBoss = _G.SelectBoss
+
+local function getCurrentSeaBossList()
+    if Sea1 then return tableMon or tableBoss end
+    if Sea2 then return tableMon or tableBoss end
+    if Sea3 then return tableMon or tableBoss end
+    return tableBoss
+end
+
+local function getBossFarmTarget(name)
+    if not name then return nil end
+    local enemies = game:GetService("Workspace").Enemies
+    for _, mob in pairs(enemies:GetChildren()) do
+        if mob.Name == name and mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
+            return mob
+        end
+    end
+
+    local bossModel = game:GetService("ReplicatedStorage"):FindFirstChild(name)
+    if bossModel and bossModel:FindFirstChild("HumanoidRootPart") then
+        return bossModel
+    end
+
+    return nil
+end
+
+local function syncSeaBossSelection()
+    local list = getCurrentSeaBossList()
+    if not list then return _G.SelectBoss end
+    if not _G.SelectBoss or not table.find(list, _G.SelectBoss) then
+        _G.SelectBoss = list[1]
+        SelectBoss = list[1]
+    end
+    return _G.SelectBoss
+end
+
 local v469 = Tabs.Main:AddDropdown("DropdownBoss", {
     ["Title"] = "Chọn Trùm",
     ["Values"] = tableBoss,
@@ -5274,45 +5339,85 @@ local v469 = Tabs.Main:AddDropdown("DropdownBoss", {
 v469:SetValue(_G.SelectBoss)
 v469:OnChanged(function(p470)
     _G.SelectBoss = p470
+    SelectBoss = p470
 end)
+
 Tabs.Main:AddToggle("ToggleAutoFarmBoss", {
     ["Title"] = "Đánh Trùm",
     ["Default"] = false
 }):OnChanged(function(p471)
     _G.AutoBoss = p471
 end)
+
+Tabs.Main:AddToggle("ToggleAutoSeaBoss", {
+    ["Title"] = "Farm Boss Tự Động Theo Sea",
+    ["Default"] = false
+}):OnChanged(function(p472)
+    _G.AutoSeaBoss = p472
+    if p472 then
+        syncSeaBossSelection()
+    end
+end)
 -- [SetValue skipped - Library không cần]
 spawn(function()
-    while wait() do
-        if _G.AutoBoss then
+    while task.wait() do
+        if _G.AutoSeaBoss then
+            syncSeaBossSelection()
+            _G.AutoBoss = true
+        end
+
+        if _G.AutoBoss and _G.SelectBoss then
             pcall(function()
-                if game:GetService("Workspace").Enemies:FindFirstChild(_G.SelectBoss) then
-                    local v472, v473, v474 = pairs(game:GetService("Workspace").Enemies:GetChildren())
-                    while true do
-                        local v475
-                        v474, v475 = v472(v473, v474)
-                        if v474 == nil then
-                            break
-                        end
-                        if v475.Name == _G.SelectBoss and (v475:FindFirstChild("Humanoid") and (v475:FindFirstChild("HumanoidRootPart") and v475.Humanoid.Health > 0)) then
-                            repeat
-                                wait(_G.Fast_Delay)
-                                AttackNoCoolDown()
-                                AutoHaki()
-                                EquipTool(SelectWeapon)
-                                v475.HumanoidRootPart.CanCollide = false
-                                v475.Humanoid.WalkSpeed = 0
-                                v475.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
-                                local _mc45 = v475.HumanoidRootPart.CFrame * Pos
-                                if (v475.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 5 then BKP(_mc45) end
-                                sethiddenproperty(game:GetService("Players").LocalPlayer, "SimulationRadius", math.huge)
-                            until not _G.AutoBoss or (not v475.Parent or v475.Humanoid.Health <= 0)
+                local target = getBossFarmTarget(_G.SelectBoss)
+                if target and target:FindFirstChild("HumanoidRootPart") then
+                    local hrp = target.HumanoidRootPart
+                    local hum = target:FindFirstChild("Humanoid")
+                    if hum and hum.Health > 0 then
+                        repeat
+                            task.wait(_G.Fast_Delay or 0.1)
+                            AttackNoCoolDown()
+                            AutoHaki()
+                            EquipTool(SelectWeapon)
+                            hrp.CanCollide = false
+                            if hum then hum.WalkSpeed = 0 end
+                            hrp.Size = Vector3.new(80, 80, 80)
+                            local _mc45 = hrp.CFrame * Pos
+                            if (hrp.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 5 then
+                                BKP(_mc45)
+                            end
+                            sethiddenproperty(game:GetService("Players").LocalPlayer, "SimulationRadius", math.huge)
+                            FarmPos = hrp.CFrame
+                            MonFarm = target.Name
+                            bringmob = true
+                        until not _G.AutoBoss or not target.Parent or not hum or hum.Health <= 0
+                        bringmob = false
+                    else
+                        _G.SelectBoss = nil
+                    end
+                else
+                    local list = getCurrentSeaBossList()
+                    if list then
+                        for _, boss in ipairs(list) do
+                            if game:GetService("Workspace").Enemies:FindFirstChild(boss) or game:GetService("ReplicatedStorage"):FindFirstChild(boss) then
+                                _G.SelectBoss = boss
+                                SelectBoss = boss
+                                break
+                            end
                         end
                     end
-                elseif game:GetService("ReplicatedStorage"):FindFirstChild(_G.SelectBoss) then
-                    local _mc_boss = game:GetService("ReplicatedStorage"):FindFirstChild(_G.SelectBoss)
-                    if _mc_boss and (_mc_boss.HumanoidRootPart.CFrame.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 5 then
-                        BKP(_mc_boss.HumanoidRootPart.CFrame * Pos)
+
+                    local safeCF = nil
+                    if type(CheckBossQuest) == "function" then
+                        CheckBossQuest()
+                    end
+                    safeCF = CFrameBoss or CFrameQBoss
+                    if safeCF then
+                        pcall(function()
+                            local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                            if hrp and (hrp.Position - safeCF.Position).Magnitude > 20 then
+                                Tween2(safeCF)
+                            end
+                        end)
                     end
                 end
             end)
@@ -11769,37 +11874,79 @@ if Sea1 then _bossPainList = {"The Gorilla King","Bobby","Yeti","Mob Leader","Vi
 elseif Sea2 then _bossPainList = {"Diamond","Jeremy","Fajita","Don Swan","Smoke Admiral","Cursed Captain","Darkbeard","Order","Awakened Ice Admiral","Tide Keeper"}
 elseif Sea3 then _bossPainList = {"Stone","Island Empress","Hydra Leader","Kilo Admiral","Captain Elephant","Beautiful Pirate","rip_indra True Form","Longma","Soul Reaper","Cake Queen","Tyrant of the Skies"}
 end
+
+local function getSelectedBossTarget()
+    local name = _G.SelectBoss or (_bossPainList and _bossPainList[1])
+    if not name then return nil end
+
+    local enemies = game.Workspace.Enemies
+    for _, boss in pairs(enemies:GetChildren()) do
+        if boss.Name == name and boss:FindFirstChild("Humanoid") and boss:FindFirstChild("HumanoidRootPart") and boss.Humanoid.Health > 0 then
+            return boss
+        end
+    end
+
+    local rs = game:GetService("ReplicatedStorage")
+    local storedBoss = rs:FindFirstChild(name)
+    if storedBoss and storedBoss:FindFirstChild("HumanoidRootPart") then
+        return storedBoss
+    end
+
+    return nil
+end
+
 if #_bossPainList > 0 then
+    if not _G.SelectBoss or not table.find(_bossPainList, _G.SelectBoss) then
+        _G.SelectBoss = _bossPainList[1]
+    end
+
     Tabs.Main:AddDropdown("DropSelectBossPain", {
         ["Title"] = "Chọn Boss",
         ["Values"] = _bossPainList,
-        ["Default"] = _bossPainList[1]
-    }):OnChanged(function(v) _G.SelectBoss = v end)
+        ["Default"] = _G.SelectBoss
+    }):OnChanged(function(v)
+        _G.SelectBoss = v
+        SelectBoss = v
+    end)
+
     Tabs.Main:AddToggle("ToggleBossPain", {
         ["Title"] = "Farm Boss Đã Chọn",
         ["Default"] = false
-    }):OnChanged(function(v) _G.BossPain = v end)
+    }):OnChanged(function(v)
+        _G.BossPain = v
+    end)
+
     task.spawn(function()
         while task.wait() do
             if _G.BossPain and _G.SelectBoss then pcall(function()
-                if not game.Workspace.Enemies:FindFirstChild(_G.SelectBoss) then
-                    local rs = game:GetService("ReplicatedStorage")
-                    if rs:FindFirstChild(_G.SelectBoss) then
-                        Tween(rs:FindFirstChild(_G.SelectBoss).HumanoidRootPart.CFrame * CFrame.new(5, 10, 2))
+                local target = getSelectedBossTarget()
+                if target and target:FindFirstChild("HumanoidRootPart") then
+                    local hrp = target.HumanoidRootPart
+                    local hum = target:FindFirstChild("Humanoid")
+                    if hum and hum.Health > 0 then
+                        repeat
+                            task.wait(_G.Fast_Delay or 0.1)
+                            AutoHaki(); EquipTool(SelectWeapon)
+                            hrp.CanCollide = false; hum.WalkSpeed = 0
+                            hrp.Size = Vector3.new(80, 80, 80)
+                            local bossCF = hrp.CFrame * Pos
+                            if (hrp.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude > 5 then
+                                BKP(bossCF)
+                            end
+                            AttackNoCoolDown()
+                            sethiddenproperty(game.Players.LocalPlayer, "SimulationRadius", math.huge)
+                            FarmPos = hrp.CFrame; MonFarm = target.Name; bringmob = true
+                        until not _G.BossPain or not target.Parent or not hum or hum.Health <= 0
+                        bringmob = false
                     end
                 else
-                    for _, v in pairs(game.Workspace.Enemies:GetChildren()) do
-                        if v.Name == _G.SelectBoss and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-                            repeat
-                                task.wait(); AutoHaki(); EquipTool(SelectWeapon)
-                                v.HumanoidRootPart.CanCollide = false; v.Humanoid.WalkSpeed = 0
-                                v.HumanoidRootPart.Size = Vector3.new(80,80,80)
-                                Tween(v.HumanoidRootPart.CFrame * Pos); AttackNoCoolDown()
-                                sethiddenproperty(game.Players.LocalPlayer,"SimulationRadius",math.huge)
-                                FarmPos = v.HumanoidRootPart.CFrame; MonFarm = v.Name; bringmob = true
-                            until not _G.BossPain or not v.Parent or v.Humanoid.Health <= 0
-                            bringmob = false
-                        end
+                    if type(CheckBossQuest) == "function" then
+                        CheckBossQuest()
+                    end
+                    if CFrameBoss then
+                        Tween2(CFrameBoss)
+                    elseif CFrameQBoss then
+                        Tween2(CFrameQBoss)
                     end
                 end
             end) end
