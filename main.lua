@@ -86,42 +86,333 @@ local BananaLogo = "rbxassetid://88031262069243"
 -- Reset để tránh dùng Library cũ nếu re-run
 getgenv()._JohnDoeLib = nil
 
-local _libSrc = game:HttpGet("https://raw.githubusercontent.com/hdanhhub/UI/main/ui_BananaHub_lua.txt")
+local function buildFallbackLibrary()
+    local function makeWidget()
+        local widget = { Callback = nil, Value = nil }
+        function widget:OnChanged(fn)
+            if type(fn) == "function" then
+                self.Callback = fn
+            end
+            return self
+        end
+        function widget:SetValue(v)
+            self.Value = v
+            return self
+        end
+        function widget:GetValue()
+            return self.Value
+        end
+        return widget
+    end
 
--- Inject getgenv()._JohnDoeLib = Library ngay SAU khi Library được tạo trong source
--- Dùng gsub để tìm dòng "local Library = {};" và thêm export ngay phía sau
-_libSrc = _libSrc:gsub(
-    "local Library = {};",
-    "local Library = {};\ngetgenv()._JohnDoeLib = Library\n",
-    1
-)
+    local function createLabel(parent, text, size, pos, textColor)
+        local label = Instance.new("TextLabel")
+        label.BackgroundTransparency = 1
+        label.Text = tostring(text)
+        label.Size = size
+        label.Position = pos
+        label.Font = Enum.Font.GothamBold
+        label.TextSize = 14
+        label.TextColor3 = textColor or Color3.fromRGB(255, 255, 255)
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = parent
+        return label
+    end
 
--- Cũng thêm ở cuối file để chắc chắn
-_libSrc = _libSrc .. "\nif Library then getgenv()._JohnDoeLib = Library end"
+    local function createButton(parent, text, size, pos, callback)
+        local button = Instance.new("TextButton")
+        button.Size = size
+        button.Position = pos
+        button.BackgroundColor3 = Color3.fromRGB(50, 110, 255)
+        button.TextColor3 = Color3.fromRGB(255, 255, 255)
+        button.Font = Enum.Font.GothamBold
+        button.TextSize = 14
+        button.Text = tostring(text)
+        button.AutoButtonColor = false
+        button.Parent = parent
+        if callback then
+            button.MouseButton1Click:Connect(callback)
+        end
+        return button
+    end
 
--- Bước 1: compile
-local _compiled, _compileErr = loadstring(_libSrc)
-if not _compiled then
-    warn("[john doe hub] Compile error: " .. tostring(_compileErr))
-else
-    -- Bước 2: chạy (ignore lỗi runtime, Library đã được inject từ bên trong)
-    pcall(_compiled)
+    local function createGroup(parent, name)
+        local group = {}
+        local frame = Instance.new("Frame")
+        frame.Name = name or "Group"
+        frame.Size = UDim2.new(1, -12, 0, 180)
+        frame.BackgroundColor3 = Color3.fromRGB(32, 38, 48)
+        frame.BorderSizePixel = 0
+        frame.Parent = parent
+
+        local title = createLabel(frame, name or "Group", UDim2.new(1, -20, 0, 24), UDim2.new(0, 10, 0, 8), Color3.fromRGB(255, 255, 255))
+        title.TextXAlignment = Enum.TextXAlignment.Left
+
+        local list = Instance.new("UIListLayout")
+        list.Padding = UDim.new(0, 8)
+        list.SortOrder = Enum.SortOrder.LayoutOrder
+        list.Parent = frame
+
+        function group:AddToggle(id, setting)
+            local widget = makeWidget()
+            local toggle = createButton(frame, id or "Toggle", UDim2.new(1, -20, 0, 28), UDim2.new(0, 10, 0, 36 + (#frame:GetChildren() * 0)), function()
+                local enabled = not (widget.Value == true)
+                widget.Value = enabled
+                if widget.Callback then
+                    widget.Callback(enabled)
+                end
+                toggle.Text = (enabled and "ON" or "OFF") .. " | " .. tostring(id or "Toggle")
+            end)
+            widget.Value = setting and setting.Default == true
+            toggle.Text = (widget.Value and "ON" or "OFF") .. " | " .. tostring(id or "Toggle")
+            return widget
+        end
+
+        function group:AddButton(setting, cb)
+            local widget = makeWidget()
+            local label = setting and setting.Title or setting and setting.Text or "Button"
+            local btn = createButton(frame, tostring(label), UDim2.new(1, -20, 0, 28), UDim2.new(0, 10, 0, 36 + (#frame:GetChildren() * 0)), function()
+                if widget.Callback then
+                    widget.Callback()
+                elseif type(cb) == "function" then
+                    cb()
+                end
+            end)
+            if type(setting) == "table" and type(setting.Callback) == "function" then
+                widget:OnChanged(setting.Callback)
+            elseif type(cb) == "function" then
+                widget:OnChanged(cb)
+            end
+            return widget
+        end
+
+        function group:AddDropdown(id, setting)
+            local widget = makeWidget()
+            widget.Value = setting and setting.Default or setting and setting.Value or "Select"
+            local label = createLabel(frame, tostring(id or "Dropdown") .. " : " .. tostring(widget.Value), UDim2.new(1, -20, 0, 24), UDim2.new(0, 10, 0, 36 + (#frame:GetChildren() * 0)))
+            widget.Label = label
+            return widget
+        end
+
+        function group:AddSlider(id, setting)
+            local widget = makeWidget()
+            widget.Value = setting and setting.Default or 0
+            local label = createLabel(frame, tostring(id or "Slider") .. " : " .. tostring(widget.Value), UDim2.new(1, -20, 0, 24), UDim2.new(0, 10, 0, 36 + (#frame:GetChildren() * 0)))
+            widget.Label = label
+            return widget
+        end
+
+        function group:AddInput(id, setting)
+            local widget = makeWidget()
+            local input = Instance.new("TextBox")
+            input.Size = UDim2.new(1, -20, 0, 28)
+            input.Position = UDim2.new(0, 10, 0, 36 + (#frame:GetChildren() * 0))
+            input.BackgroundColor3 = Color3.fromRGB(23, 27, 32)
+            input.TextColor3 = Color3.fromRGB(255, 255, 255)
+            input.PlaceholderText = tostring(id or "Input")
+            input.Font = Enum.Font.Gotham
+            input.TextSize = 14
+            input.Parent = frame
+            widget.Value = setting and setting.Default or ""
+            input.Text = tostring(widget.Value)
+            input.FocusLost:Connect(function(enterPressed)
+                if enterPressed then
+                    widget.Value = input.Text
+                    if widget.Callback then
+                        widget.Callback(input.Text)
+                    end
+                end
+            end)
+            return widget
+        end
+
+        function group:AddParagraph(setting)
+            local txt = setting and (setting.Title or setting.Description or setting.Text or setting.Desc or "") or ""
+            local label = createLabel(frame, tostring(txt), UDim2.new(1, -20, 0, 24), UDim2.new(0, 10, 0, 36 + (#frame:GetChildren() * 0)))
+            label.TextWrapped = true
+            label.TextSize = 12
+            return { Label = label }
+        end
+
+        function group:AddLabel(text)
+            local label = createLabel(frame, tostring(text), UDim2.new(1, -20, 0, 24), UDim2.new(0, 10, 0, 36 + (#frame:GetChildren() * 0)))
+            return { Label = label }
+        end
+
+        return group
+    end
+
+    local function newTab(name)
+        local tab = {}
+        local root = Instance.new("ScrollingFrame")
+        root.Name = name or "Tab"
+        root.Size = UDim2.new(1, -20, 1, -40)
+        root.Position = UDim2.new(0, 10, 0, 28)
+        root.BackgroundTransparency = 1
+        root.BorderSizePixel = 0
+        root.ScrollBarThickness = 6
+        root.CanvasSize = UDim2.new(0, 0, 0, 600)
+        root.Visible = true
+
+        local layout = Instance.new("UIListLayout")
+        layout.Padding = UDim.new(0, 12)
+        layout.Parent = root
+
+        function tab:AddLeftGroupbox(label)
+            local group = createGroup(root, label or "Left")
+            return group
+        end
+
+        function tab:AddRightGroupbox(label)
+            local group = createGroup(root, label or "Right")
+            return group
+        end
+
+        return tab
+    end
+
+    local lib = {}
+
+    lib.Notify = function(_, info)
+        if not info then return end
+        local notify = Instance.new("TextLabel")
+        notify.Size = UDim2.new(0, 240, 0, 42)
+        notify.Position = UDim2.new(0.5, -120, 0.05, 0)
+        notify.BackgroundColor3 = Color3.fromRGB(35, 42, 52)
+        notify.TextColor3 = Color3.fromRGB(255, 255, 255)
+        notify.Text = tostring(info.Title or "john doe") .. "\n" .. tostring(info.Description or "")
+        notify.Font = Enum.Font.GothamBold
+        notify.TextSize = 14
+        notify.BackgroundTransparency = 0.1
+        notify.Parent = game:GetService("CoreGui")
+        task.delay(info.Duration or 3, function()
+            if notify and notify.Parent then
+                notify:Destroy()
+            end
+        end)
+    end
+
+    lib.CreateWindow = function(_, opts)
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "JohnDoeFallbackGui"
+        gui.ResetOnSpawn = false
+        gui.IgnoreGuiInset = true
+        gui.Parent = PlayerGui
+
+        local bg = Instance.new("Frame")
+        bg.Name = "Main"
+        bg.Size = UDim2.new(0, 520, 0, 420)
+        bg.Position = UDim2.new(0.5, -260, 0.5, -210)
+        bg.BackgroundColor3 = Color3.fromRGB(18, 23, 30)
+        bg.Parent = gui
+
+        local header = Instance.new("Frame")
+        header.Name = "Header"
+        header.Size = UDim2.new(1, 0, 0, 42)
+        header.BackgroundColor3 = Color3.fromRGB(26, 33, 42)
+        header.Parent = bg
+
+        local title = Instance.new("TextLabel")
+        title.Size = UDim2.new(1, -100, 1, 0)
+        title.Position = UDim2.new(0, 50, 0, 0)
+        title.BackgroundTransparency = 1
+        title.Font = Enum.Font.GothamBold
+        title.TextSize = 26
+        title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        title.Text = tostring(opts and opts.Title or "john doe")
+        title.Parent = header
+
+        local tabsFrame = Instance.new("Frame")
+        tabsFrame.Name = "Tabs"
+        tabsFrame.Size = UDim2.new(1, -20, 1, -60)
+        tabsFrame.Position = UDim2.new(0, 10, 0, 50)
+        tabsFrame.BackgroundTransparency = 1
+        tabsFrame.Parent = bg
+
+        local tabButtonContainer = Instance.new("Frame")
+        tabButtonContainer.Size = UDim2.new(1, 0, 0, 30)
+        tabButtonContainer.BackgroundTransparency = 1
+        tabButtonContainer.Parent = tabsFrame
+
+        local activeTab = nil
+        local tabButtons = {}
+
+        local window = {}
+        function window:AddTab(name)
+            local btn = createButton(tabButtonContainer, tostring(name), UDim2.new(0, 110, 0, 24), UDim2.new(0, (#tabButtons * 120), 0, 0), function()
+                for _, b in ipairs(tabButtons) do
+                    b.BackgroundColor3 = Color3.fromRGB(50, 110, 255)
+                end
+                btn.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
+                if activeTab and activeTab.Frame then
+                    activeTab.Frame.Visible = false
+                end
+                activeTab = { Frame = page }
+                page.Visible = true
+            end)
+            table.insert(tabButtons, btn)
+
+            local page = Instance.new("ScrollingFrame")
+            page.Name = tostring(name)
+            page.Size = UDim2.new(1, 0, 1, -30)
+            page.Position = UDim2.new(0, 0, 0, 30)
+            page.BackgroundTransparency = 1
+            page.ScrollBarThickness = 5
+            page.Visible = false
+            page.Parent = tabsFrame
+
+            local layout = Instance.new("UIListLayout")
+            layout.Padding = UDim.new(0, 12)
+            layout.Parent = page
+
+            local tabObj = {}
+            function tabObj:AddLeftGroupbox(label)
+                return createGroup(page, label or "Left")
+            end
+            function tabObj:AddRightGroupbox(label)
+                return createGroup(page, label or "Right")
+            end
+            if not activeTab then
+                activeTab = { Frame = page }
+                page.Visible = true
+                btn.BackgroundColor3 = Color3.fromRGB(80, 150, 255)
+            end
+            return tabObj
+        end
+
+        return window
+    end
+
+    return lib
 end
 
--- Lấy Library từ getgenv() (đã được inject từ bên trong source)
+local _libSrc = nil
+local _libLoadOk, _libRes = pcall(function()
+    return game:HttpGet("https://raw.githubusercontent.com/hdanhhub/UI/main/ui_BananaHub_lua.txt")
+end)
+
+if _libLoadOk and type(_libRes) == "string" and _libRes ~= "" then
+    _libSrc = _libRes
+    _libSrc = _libSrc:gsub(
+        "local Library = {};",
+        "local Library = {};\ngetgenv()._JohnDoeLib = Library\n",
+        1
+    )
+    _libSrc = _libSrc .. "\nif Library then getgenv()._JohnDoeLib = Library end"
+
+    local _compiled, _compileErr = loadstring(_libSrc)
+    if _compiled then
+        pcall(_compiled)
+    else
+        warn("[john doe hub] Compile error: " .. tostring(_compileErr))
+    end
+end
+
 Library = getgenv()._JohnDoeLib
 
 if not Library or not Library.CreateWindow then
-    warn("[john doe hub] Library = nil sau khi load! Thử fallback...")
-    -- Fallback cuối: chạy trực tiếp không check
-    pcall(function()
-        Library = loadstring(_libSrc)()
-    end)
-end
-
-if not Library or not Library.CreateWindow then
-    warn("[john doe hub] FATAL: Không load được Library. Script dừng.")
-    return
+    warn("[john doe hub] Library unavailable; using built-in fallback UI.")
+    Library = buildFallbackLibrary()
 end
 
 print("[john doe hub] Library loaded OK:", tostring(Library))
