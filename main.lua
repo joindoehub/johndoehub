@@ -78,27 +78,52 @@ Root = HumanoidRootPart
 -- ==========================================
 -- 5. LOAD UI LIBRARY (john doe hub)
 -- ==========================================
-do
-    local ok, result = pcall(function()
-        -- Lấy source code thư viện rồi append "return Library" để nó trả về đúng
-        local src = game:HttpGet("https://raw.githubusercontent.com/hdanhhub/UI/main/ui_BananaHub_lua.txt")
-        src = src .. "\nreturn Library"
-        return loadstring(src)()
-    end)
-    if ok and type(result) == "table" and result.CreateWindow then
-        Library = result
-    else
-        -- Fallback: thử lấy từ getgenv nếu thư viện đã tự set
-        Library = getgenv().Library or getgenv().UILib
-    end
-    if not Library or not Library.CreateWindow then
-        warn("[john doe hub] Không load được UI Library! Lỗi: " .. tostring(result))
-        return
-    end
-end
 
 local JohnDoeLogo = "rbxassetid://123613996022560"
 local BananaLogo = "rbxassetid://88031262069243"
+
+-- Reset để tránh dùng Library cũ nếu re-run
+getgenv()._JohnDoeLib = nil
+
+local _libSrc = game:HttpGet("https://raw.githubusercontent.com/hdanhhub/UI/main/ui_BananaHub_lua.txt")
+
+-- Inject getgenv()._JohnDoeLib = Library ngay SAU khi Library được tạo trong source
+-- Dùng gsub để tìm dòng "local Library = {};" và thêm export ngay phía sau
+_libSrc = _libSrc:gsub(
+    "local Library = {};",
+    "local Library = {};\ngetgenv()._JohnDoeLib = Library\n",
+    1
+)
+
+-- Cũng thêm ở cuối file để chắc chắn
+_libSrc = _libSrc .. "\nif Library then getgenv()._JohnDoeLib = Library end"
+
+-- Bước 1: compile
+local _compiled, _compileErr = loadstring(_libSrc)
+if not _compiled then
+    warn("[john doe hub] Compile error: " .. tostring(_compileErr))
+else
+    -- Bước 2: chạy (ignore lỗi runtime, Library đã được inject từ bên trong)
+    pcall(_compiled)
+end
+
+-- Lấy Library từ getgenv() (đã được inject từ bên trong source)
+Library = getgenv()._JohnDoeLib
+
+if not Library or not Library.CreateWindow then
+    warn("[john doe hub] Library = nil sau khi load! Thử fallback...")
+    -- Fallback cuối: chạy trực tiếp không check
+    pcall(function()
+        Library = loadstring(_libSrc)()
+    end)
+end
+
+if not Library or not Library.CreateWindow then
+    warn("[john doe hub] FATAL: Không load được Library. Script dừng.")
+    return
+end
+
+print("[john doe hub] Library loaded OK:", tostring(Library))
 
 -- Patch UIColor TRƯỚC khi CreateWindow để header logo đúng ngay từ đầu
 if getgenv().UIColor then
