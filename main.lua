@@ -19,9 +19,9 @@ local CollectionService = game:GetService("CollectionService")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui", 5)
 
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Character = Player.Character
+local Humanoid = Character and Character:FindFirstChild("Humanoid")
+local HumanoidRootPart = Character and Character:FindFirstChild("HumanoidRootPart")
 local Root = HumanoidRootPart
 
 Player.CharacterAdded:Connect(function(char)
@@ -29,6 +29,16 @@ Player.CharacterAdded:Connect(function(char)
     Humanoid = char:WaitForChild("Humanoid")
     HumanoidRootPart = char:WaitForChild("HumanoidRootPart")
     Root = HumanoidRootPart
+end)
+
+-- Nếu chưa có Character, lắng nghe ngầm mà không chặn việc mở UI
+task.spawn(function()
+    if not Character then
+        Character = Player.CharacterAdded:Wait()
+        Humanoid = Character:WaitForChild("Humanoid")
+        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+        Root = HumanoidRootPart
+    end
 end)
 
 -- ==========================================
