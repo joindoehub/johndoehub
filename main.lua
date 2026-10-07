@@ -6261,6 +6261,35 @@ if Sea3 then
             if tool:IsA("Tool") then table.insert(tools, tool) end
         end
 
+        local attackMode = _G.SeaEventAttackMode or "Kỹ năng"
+        if attackMode == "Dragonstorm M1" or attackMode == "M1 Blox Fruit" then
+            local selectedTool
+            for _, tool in ipairs(tools) do
+                local toolName = tool.Name:lower()
+                if attackMode == "Dragonstorm M1" and string.find(toolName, "dragonstorm", 1, true) then
+                    selectedTool = tool
+                    break
+                elseif attackMode == "M1 Blox Fruit" and tool.ToolTip == "Blox Fruit" then
+                    selectedTool = tool
+                    break
+                end
+            end
+            if selectedTool then
+                hum:EquipTool(selectedTool)
+                task.wait(0.1)
+                local camera = workspace.CurrentCamera
+                if camera then
+                    local center = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+                    local virtualUser = game:GetService("VirtualUser")
+                    virtualUser:CaptureController()
+                    virtualUser:Button1Down(center, camera.CFrame)
+                    task.wait(0.05)
+                    virtualUser:Button1Up(center, camera.CFrame)
+                end
+            end
+            return
+        end
+
         for _, toolType in ipairs({"Melee", "Blox Fruit", "Sword", "Gun"}) do
             for _, tool in ipairs(tools) do
                 if tool.ToolTip == toolType then
@@ -6392,6 +6421,16 @@ if Sea3 then
         ["Default"] = false
     }):OnChanged(function(p630)
         _G.SeaBeast = p630
+    end)
+    local seaEventAttackMode = Tabs.Sea:AddDropdown("DropdownSeaEventAttackMode", {
+        ["Title"] = "Cách đánh sự kiện biển",
+        ["Values"] = {"Kỹ năng", "Dragonstorm M1", "M1 Blox Fruit"},
+        ["Multi"] = false,
+        ["Default"] = 1
+    })
+    seaEventAttackMode:SetValue("Kỹ năng")
+    seaEventAttackMode:OnChanged(function(mode)
+        _G.SeaEventAttackMode = mode
     end)
     spawn(function()
         while wait() do
