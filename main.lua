@@ -19,6 +19,20 @@ local CollectionService = game:GetService("CollectionService")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui", 5)
 
+task.spawn(function()
+    local remotes = ReplicatedStorage:WaitForChild("Remotes", 15)
+    local commF = remotes and remotes:WaitForChild("CommF_", 15)
+    if not commF then return end
+
+    local deadline = os.clock() + 15
+    while Player.Parent and not Player.Team and os.clock() < deadline do
+        pcall(function()
+            commF:InvokeServer("SetTeam", "Marines")
+        end)
+        task.wait(1)
+    end
+end)
+
 local Character = Player.Character
 local Humanoid = Character and Character:FindFirstChild("Humanoid")
 local HumanoidRootPart = Character and Character:FindFirstChild("HumanoidRootPart")
@@ -66,10 +80,13 @@ Root = HumanoidRootPart
 -- ==========================================
 Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/hdanhhub/UI/main/ui_BananaHub_lua.txt"))()
 
+local JohnDoeLogo = "rbxassetid://123613996022560"
+local BananaLogo = "rbxassetid://88031262069243"
+
 Window = Library:CreateWindow({
     Title = "john doe",
     Desc = "- Blox Fruit",
-    Image = "rbxassetid://123613996022560"
+    Image = JohnDoeLogo
 })
 
 -- ==========================================
@@ -284,23 +301,43 @@ Tabs = {
     ["Misc"]     = wrapTab(Window:AddTab("Khác")),
 }
 
--- ==========================================
--- GIỮ UI BANANA GỐC & ĐỔI TÊN "JOHN DOE" MÀU ĐỎ
--- ==========================================
+-- Đổi tiêu đề và logo của UI sang John Doe
 task.spawn(function()
     task.wait(0.3)
-    local function applyRedTitle(gui)
+    local watchedLogos = setmetatable({}, { __mode = "k" })
+
+    local function applyLogo(gui, desc)
+        if not (desc:IsA("ImageLabel") or desc:IsA("ImageButton")) then return end
+
+        local isHeaderLogo = gui.Name == "Ziner hub GUI" and desc.Name == "Ruafimg"
+        local isToggleLogo = gui.Name == "BananaToggleGui" and desc.Name == "icon"
+        if not (isHeaderLogo or isToggleLogo or desc.Image == BananaLogo) then return end
+
+        desc.Image = JohnDoeLogo
+        if not watchedLogos[desc] then
+            watchedLogos[desc] = true
+            desc:GetPropertyChangedSignal("Image"):Connect(function()
+                if desc.Parent and desc.Image ~= JohnDoeLogo then
+                    desc.Image = JohnDoeLogo
+                end
+            end)
+        end
+    end
+
+    local function applyBranding(gui)
         if not gui then return end
         for _, desc in pairs(gui:GetDescendants()) do
             if desc:IsA("TextLabel") and (desc.Text:lower():find("john doe") or desc.Text:lower():find("banana")) then
                 desc.Text = "john doe"
                 desc.TextColor3 = Color3.fromRGB(255, 42, 42) -- Màu đỏ
             end
+
+            applyLogo(gui, desc)
         end
     end
 
     local foundGuis = {}
-    for _, name in ipairs({"Banana_Hub", "Ziner hub GUI", "HDanh Hub", "joindoe hub"}) do
+    for _, name in ipairs({"Banana_Hub", "Ziner hub GUI", "HDanh Hub", "joindoe hub", "BananaToggleGui"}) do
         local g1 = PlayerGui:FindFirstChild(name)
         if g1 then table.insert(foundGuis, g1) end
         pcall(function()
@@ -315,13 +352,15 @@ task.spawn(function()
         end)
     end
     for _, g in ipairs(foundGuis) do
-        applyRedTitle(g)
+        applyBranding(g)
         g.DescendantAdded:Connect(function(desc)
             if desc:IsA("TextLabel") and (desc.Text:lower():find("john doe") or desc.Text:lower():find("banana")) then
                 task.wait()
                 desc.Text = "john doe"
                 desc.TextColor3 = Color3.fromRGB(255, 42, 42)
             end
+
+            applyLogo(g, desc)
         end)
     end
 end)
