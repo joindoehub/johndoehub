@@ -83,6 +83,11 @@ Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/hdanhhub/UI
 local JohnDoeLogo = "rbxassetid://123613996022560"
 local BananaLogo = "rbxassetid://88031262069243"
 
+-- Patch UIColor TRƯỚC khi CreateWindow để header logo đúng ngay từ đầu
+if getgenv().UIColor then
+    getgenv().UIColor["Logo Image"] = JohnDoeLogo
+end
+
 Window = Library:CreateWindow({
     Title = "john doe",
     Desc = "- Blox Fruit",
@@ -301,67 +306,91 @@ Tabs = {
     ["Misc"]     = wrapTab(Window:AddTab("Khác")),
 }
 
--- Đổi tiêu đề và logo của UI sang John Doe
+-- Đổi logo và branding sang John Doe (scan CoreGui, PlayerGui, gethui)
 task.spawn(function()
-    task.wait(0.3)
     local watchedLogos = setmetatable({}, { __mode = "k" })
 
-    local function applyLogo(gui, desc)
-        if not (desc:IsA("ImageLabel") or desc:IsA("ImageButton")) then return end
-
-        local isHeaderLogo = gui.Name == "Ziner hub GUI" and desc.Name == "Ruafimg"
-        local isToggleLogo = gui.Name == "BananaToggleGui" and desc.Name == "icon"
-        if not (isHeaderLogo or isToggleLogo or desc.Image == BananaLogo) then return end
-
+    -- Hàm patch một image object
+    local function patchImage(desc)
+        if watchedLogos[desc] then return end
+        watchedLogos[desc] = true
         desc.Image = JohnDoeLogo
-        if not watchedLogos[desc] then
-            watchedLogos[desc] = true
-            desc:GetPropertyChangedSignal("Image"):Connect(function()
-                if desc.Parent and desc.Image ~= JohnDoeLogo then
-                    desc.Image = JohnDoeLogo
+        -- Giữ nguyên logo dù thư viện có cố reset
+        desc:GetPropertyChangedSignal("Image"):Connect(function()
+            if desc.Parent and desc.Image ~= JohnDoeLogo then
+                desc.Image = JohnDoeLogo
+            end
+        end)
+    end
+
+    -- Hàm scan tất cả descendants của một container
+    local function scanDescendants(container)
+        if not container then return end
+        for _, desc in ipairs(container:GetDescendants()) do
+            pcall(function()
+                if (desc:IsA("ImageLabel") or desc:IsA("ImageButton")) then
+                    if desc.Image == BananaLogo
+                        or desc.Name == "icon"
+                        or desc.Name == "Ruafimg"
+                    then
+                        patchImage(desc)
+                    end
+                end
+                if desc:IsA("TextLabel") and desc.Text:lower():find("banana") then
+                    desc.Text = "john doe"
+                    desc.TextColor3 = Color3.fromRGB(255, 42, 42)
                 end
             end)
         end
     end
 
-    local function applyBranding(gui)
-        if not gui then return end
-        for _, desc in pairs(gui:GetDescendants()) do
-            if desc:IsA("TextLabel") and (desc.Text:lower():find("john doe") or desc.Text:lower():find("banana")) then
-                desc.Text = "john doe"
-                desc.TextColor3 = Color3.fromRGB(255, 42, 42) -- Màu đỏ
-            end
+    -- Kết nối DescendantAdded để patch ngay khi có element mới
+    local connectedGuis = {}
+    local function watchGui(gui)
+        if not gui or connectedGuis[gui] then return end
+        connectedGuis[gui] = true
+        scanDescendants(gui)
+        gui.DescendantAdded:Connect(function(desc)
+            task.wait()
+            pcall(function()
+                if (desc:IsA("ImageLabel") or desc:IsA("ImageButton")) then
+                    if desc.Image == BananaLogo
+                        or desc.Name == "icon"
+                        or desc.Name == "Ruafimg"
+                    then
+                        patchImage(desc)
+                    end
+                end
+                if desc:IsA("TextLabel") and desc.Text:lower():find("banana") then
+                    desc.Text = "john doe"
+                    desc.TextColor3 = Color3.fromRGB(255, 42, 42)
+                end
+            end)
+        end)
+    end
 
-            applyLogo(gui, desc)
+    local guiNames = {"Banana_Hub", "Ziner hub GUI", "HDanh Hub", "joindoe hub", "BananaToggleGui", "NazuXWindowsToggleUltimate"}
+    local coreGui = game:GetService("CoreGui")
+
+    -- Retry 10 lần, mỗi 0.5s để đảm bảo GUI đã được tạo xong
+    for attempt = 1, 10 do
+        for _, name in ipairs(guiNames) do
+            pcall(function()
+                local g = coreGui:FindFirstChild(name)
+                if g then watchGui(g) end
+            end)
+            pcall(function()
+                local g = PlayerGui:FindFirstChild(name)
+                if g then watchGui(g) end
+            end)
+            pcall(function()
+                if gethui then
+                    local g = gethui():FindFirstChild(name)
+                    if g then watchGui(g) end
+                end
+            end)
         end
-    end
-
-    local foundGuis = {}
-    for _, name in ipairs({"Banana_Hub", "Ziner hub GUI", "HDanh Hub", "joindoe hub", "BananaToggleGui"}) do
-        local g1 = PlayerGui:FindFirstChild(name)
-        if g1 then table.insert(foundGuis, g1) end
-        pcall(function()
-            local g2 = game:GetService("CoreGui"):FindFirstChild(name)
-            if g2 then table.insert(foundGuis, g2) end
-        end)
-        pcall(function()
-            if gethui then
-                local g3 = gethui():FindFirstChild(name)
-                if g3 then table.insert(foundGuis, g3) end
-            end
-        end)
-    end
-    for _, g in ipairs(foundGuis) do
-        applyBranding(g)
-        g.DescendantAdded:Connect(function(desc)
-            if desc:IsA("TextLabel") and (desc.Text:lower():find("john doe") or desc.Text:lower():find("banana")) then
-                task.wait()
-                desc.Text = "john doe"
-                desc.TextColor3 = Color3.fromRGB(255, 42, 42)
-            end
-
-            applyLogo(g, desc)
-        end)
+        task.wait(0.5)
     end
 end)
 
