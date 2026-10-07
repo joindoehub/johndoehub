@@ -1,5 +1,5 @@
-    -- ==========================================
--- SERVICES
+-- ==========================================
+-- 1. SERVICES
 -- ==========================================
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -13,11 +13,12 @@ local VirtualUser = game:GetService("VirtualUser")
 local Lighting = game:GetService("Lighting")
 local CollectionService = game:GetService("CollectionService")
 
--- PLAYER
+-- ==========================================
+-- 2. PLAYER & CHARACTER
+-- ==========================================
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui", 5)
 
--- CHARACTER
 local Character = Player.Character or Player.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
@@ -30,13 +31,17 @@ Player.CharacterAdded:Connect(function(char)
     Root = HumanoidRootPart
 end)
 
--- EXPLOIT CHECK
+-- ==========================================
+-- 3. EXPLOIT CHECK
+-- ==========================================
 local executor = (getexecutorname and getexecutorname()) or (identifyexecutor and identifyexecutor())
 if executor then
     print("[joindoe hub] Executor detected: " .. tostring(executor))
 end
 
--- ALIASES
+-- ==========================================
+-- 4. ALIASES
+-- ==========================================
 local ply = Players
 local replicated = ReplicatedStorage
 local RunSer = RunService
@@ -47,14 +52,14 @@ local plr = Player
 Root = HumanoidRootPart
 
 -- ==========================================
--- LOAD UI LIBRARY (joindoe hub)
+-- 5. LOAD UI LIBRARY (john doe hub)
 -- ==========================================
 Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/hdanhhub/UI/main/ui_BananaHub_lua.txt"))()
 
 Window = Library:CreateWindow({
-    Title = "joindoe hub",
+    Title = "john doe",
     Desc = "- Blox Fruit",
-    Image = "rbxassetid://90769669589396"
+    Image = "rbxassetid://123613996022560"
 })
 
 -- ==========================================
@@ -270,92 +275,52 @@ Tabs = {
 }
 
 -- ==========================================
--- ĐỔI MÀU GIAO DIỆN (NỀN: #0F0F12, KHUNG: #202025, ĐIỂM NHẤN: #FF2A2A, CHỮ: #FFFFFF)
+-- GIỮ UI BANANA GỐC & ĐỔI TÊN "JOHN DOE" MÀU ĐỎ
 -- ==========================================
-pcall(function()
-    local cBackground = Color3.fromRGB(15, 15, 18)   -- #0F0F12
-    local cFrame      = Color3.fromRGB(32, 32, 37)   -- #202025
-    local cAccent     = Color3.fromRGB(255, 42, 42)  -- #FF2A2A
-    local cText       = Color3.fromRGB(255, 255, 255)-- #FFFFFF
-
-    if Library.SetTheme then
-        Library:SetTheme({
-            Background         = cBackground,
-            Accent             = cAccent,
-            PrimaryText        = cText,
-            SecondaryText      = Color3.fromRGB(200, 200, 200),
-            Divider            = Color3.fromRGB(45, 45, 52),
-            Header             = Color3.fromRGB(20, 20, 24),
-            Box                = cFrame,
-            Button             = cFrame,
-            Hover              = Color3.fromRGB(45, 45, 52),
-            Toggle             = cAccent,
-            ToggleBackground   = cFrame,
-            Dropdown           = cFrame,
-            DropdownBackground = cBackground,
-            Scrollbar          = cAccent,
-            Outline            = cFrame,
-            Shadow             = Color3.fromRGB(10, 10, 12),
-        })
-    end
-
-    if Library.Theme then
-        for k, v in pairs(Library.Theme) do
-            if typeof(v) == "Color3" then
-                if k:lower():find("accent") or k:lower():find("toggle") or k:lower():find("scroll") then
-                    Library.Theme[k] = cAccent
-                elseif k:lower():find("box") or k:lower():find("frame") or k:lower():find("drop") or k:lower():find("btn") or k:lower():find("button") then
-                    Library.Theme[k] = cFrame
-                elseif k:lower():find("back") or k:lower():find("bg") then
-                    Library.Theme[k] = cBackground
-                elseif k:lower():find("text") then
-                    Library.Theme[k] = cText
-                else
-                    Library.Theme[k] = cFrame
-                end
+task.spawn(function()
+    task.wait(0.3)
+    local function applyRedTitle(gui)
+        if not gui then return end
+        for _, desc in pairs(gui:GetDescendants()) do
+            if desc:IsA("TextLabel") and (desc.Text:lower():find("john doe") or desc.Text:lower():find("banana")) then
+                desc.Text = "john doe"
+                desc.TextColor3 = Color3.fromRGB(255, 42, 42) -- Màu đỏ
             end
         end
     end
 
-    task.spawn(function()
-        task.wait(0.5)
-        local targetGuis = {}
-        for _, name in ipairs({"Banana_Hub", "Ziner hub GUI", "HDanh Hub", "joindoe hub"}) do
-            local g = PlayerGui:FindFirstChild(name) or (pcall(function() return game:GetService("CoreGui"):FindFirstChild(name) end) and game:GetService("CoreGui"):FindFirstChild(name))
-            if g then table.insert(targetGuis, g) end
-        end
-        for _, gui in ipairs(targetGuis) do
-            for _, desc in pairs(gui:GetDescendants()) do
-                if desc:IsA("Frame") or desc:IsA("ScrollingFrame") then
-                    if desc.BackgroundTransparency < 1 then
-                        if desc.Name:lower():find("main") or desc.Name:lower():find("background") or desc.Name:lower():find("holder") then
-                            desc.BackgroundColor3 = cBackground
-                        else
-                            desc.BackgroundColor3 = cFrame
-                        end
-                    end
-                elseif desc:IsA("TextButton") then
-                    desc.BackgroundColor3 = cFrame
-                    desc.TextColor3 = cText
-                elseif desc:IsA("TextLabel") then
-                    desc.TextColor3 = cText
-                elseif desc:IsA("ImageLabel") or desc:IsA("ImageButton") then
-                    if desc.Name:lower():find("accent") or desc.Name:lower():find("check") or desc.Name:lower():find("icon") then
-                        desc.ImageColor3 = cAccent
-                    end
-                elseif desc:IsA("UIStroke") then
-                    desc.Color = cAccent
-                end
+    local foundGuis = {}
+    for _, name in ipairs({"Banana_Hub", "Ziner hub GUI", "HDanh Hub", "joindoe hub"}) do
+        local g1 = PlayerGui:FindFirstChild(name)
+        if g1 then table.insert(foundGuis, g1) end
+        pcall(function()
+            local g2 = game:GetService("CoreGui"):FindFirstChild(name)
+            if g2 then table.insert(foundGuis, g2) end
+        end)
+        pcall(function()
+            if gethui then
+                local g3 = gethui():FindFirstChild(name)
+                if g3 then table.insert(foundGuis, g3) end
             end
-        end
-    end)
+        end)
+    end
+    for _, g in ipairs(foundGuis) do
+        applyRedTitle(g)
+        g.DescendantAdded:Connect(function(desc)
+            if desc:IsA("TextLabel") and (desc.Text:lower():find("john doe") or desc.Text:lower():find("banana")) then
+                task.wait()
+                desc.Text = "john doe"
+                desc.TextColor3 = Color3.fromRGB(255, 42, 42)
+            end
+        end)
+    end
 end)
 
 wait(1)
 
 Library:Notify({
-    Title = "joindoe hub",
-    Description = "Chào mừng! Giao diện đã được load thành công.\nNhấn nút góc trái màn hình để mở GUI.",
+    Title = "john doe",
+    Description = "Chào mừng! Giao diện Banana Hub đã được load thành công.\nNhấn nút góc trái màn hình để mở GUI.",
     Duration = 4
 })
 
@@ -8858,6 +8823,19 @@ function InfAb()
         game:GetService("Players").LocalPlayer.Character.HumanoidRootPart:FindFirstChild("Agility"):Destroy()
     end
 end
+Tabs.Player:AddSection("Người Chơi")
+Tabs.Player:AddSlider("WalkSpeedSlider", {
+    ["Title"] = "Tốc Độ Di Chuyển (WalkSpeed)",
+    ["Min"] = 16,
+    ["Max"] = 350,
+    ["Default"] = 16
+}):OnChanged(function(v)
+    pcall(function()
+        if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = tonumber(v) or 16
+        end
+    end)
+end)
 Tabs.Player:AddToggle("ToggleNoClip", {
     ["Title"] = "Đi Xuyên Tường",
     ["Default"] = true
@@ -12076,4 +12054,4 @@ Tabs.Misc:AddButton({
 })
 
 -- ===============================================================
-print('✅ joindoe hub - Tất cả tính năng đã được load!')
+print('✅ john doe - Tất cả tính năng đã được load!')
